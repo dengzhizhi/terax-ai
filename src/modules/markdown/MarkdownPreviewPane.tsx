@@ -24,7 +24,11 @@ type Props = {
   onSetView: (mode: "rendered" | "raw") => void;
 };
 
-const components = { code: MarkdownCode };
+const components = {
+  code: (props: Parameters<typeof MarkdownCode>[0]) => (
+    <MarkdownCode {...props} enableMermaidPreview />
+  ),
+};
 
 export function MarkdownPreviewPane({ path, visible, onSetView }: Props) {
   const [status, setStatus] = useState<Status>({ kind: "loading" });

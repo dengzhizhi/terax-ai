@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { ChatCodeBlock } from "./chat-code";
+import { isMermaidLanguage, MermaidCodeBlock } from "./mermaid-code";
 
 /**
  * Streamdown `components.code` override. Handles both inline (`code`) and
@@ -12,10 +13,12 @@ import { ChatCodeBlock } from "./chat-code";
 export function MarkdownCode({
   className,
   children,
+  enableMermaidPreview = false,
   ...rest
 }: {
   className?: string;
   children?: ReactNode;
+  enableMermaidPreview?: boolean;
 }) {
   const match = className?.match(/language-(\w+)/);
   if (!match) {
@@ -30,5 +33,9 @@ export function MarkdownCode({
   }
 
   const code = String(children ?? "").replace(/\n$/, "");
-  return <ChatCodeBlock code={code} lang={match[1] ?? null} />;
+  const lang = match[1] ?? null;
+  if (enableMermaidPreview && isMermaidLanguage(lang)) {
+    return <MermaidCodeBlock code={code} lang={lang} />;
+  }
+  return <ChatCodeBlock code={code} lang={lang} />;
 }

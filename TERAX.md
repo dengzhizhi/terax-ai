@@ -86,7 +86,13 @@ Each module is self-contained, exports a thin barrel via `index.ts`, and owns it
 - **sidebar/** — activity bar + collapsible side panels (explorer, source control, git history).
 - **source-control/** — git status / stage / commit panel and diff workflow.
 - **git-history/** — commit graph rail, refs, per-commit file diffs.
-- **markdown/** — markdown preview renderer (backs the `markdown` tab kind).
+- **markdown/** — markdown preview renderer (backs the `markdown` tab kind). Mermaid rendering is scoped to markdown file preview only: `mermaid` / `mmd` fenced blocks default to Preview, expose Code fallback, lazy-load `mermaid`, sanitize SVG output, and re-render on theme changes. Chat code blocks intentionally stay on the source path. Manual verification sample:
+  ```mermaid
+  flowchart LR
+    A[Markdown file] --> B{Mermaid fence?}
+    B -- yes --> C[Preview + fullscreen]
+    B -- no --> D[Code block]
+  ```
 - **workspace/** — workspace environment switching (Local + WSL distros).
 - **theme/** — custom theme engine (no `next-themes`). `ThemeProvider` + `applyTheme` write CSS variables; built-in presets in `themes/` (terax-default, claude, kanagawa, kanagawa-dragon, tokyo-night, catppuccin, rose-pine, everforest, nord, gruvbox, dracula, solarized, tide, sage, caffeine), each optionally declaring an `editorTheme` pairing consumed by `resolveEditorThemeId` (see editor/). User themes via `customThemes.ts` + `validateTheme.ts`, optional background image via `bgImageStore.ts` + `SurfaceLayer`.
 - **updater/** — auto-updater UI built on `tauri-plugin-updater`.

@@ -104,7 +104,7 @@ The themes below frame every scope decision.
 - [ ] More slash commands and skills
 - [ ] Approval flow improvements (YOLO / auto-approve, project-scoped policies, per-tool trust)
 - [ ] Persistent terminal sessions and layout restore
-- [ ] Preview surface expansion (better image / Markdown handling)
+- [x] Preview surface expansion: Markdown file preview supports Mermaid / `.mmd` diagrams with code fallback, theme refresh, and fullscreen zoom / pan controls.
 - [ ] Test coverage expansion (PTY edge cases, security functions, AI tool guards)
 
 ### Longer horizon

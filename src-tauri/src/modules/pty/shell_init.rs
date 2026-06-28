@@ -71,7 +71,9 @@ pub fn build_command(
 // Honor the override only if it matches an enumerated shell, so a tampered
 // setting can't spawn an arbitrary binary across the IPC boundary.
 fn sanitize_shell_override(shell: Option<String>) -> Option<String> {
-    let candidate = shell.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())?;
+    let candidate = shell
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())?;
     let target = std::fs::canonicalize(&candidate).ok();
     let allowed = list_shells().into_iter().any(|s| {
         s.path == candidate || (target.is_some() && std::fs::canonicalize(&s.path).ok() == target)
@@ -395,6 +397,7 @@ mod unix {
     #[cfg(test)]
     mod tests {
         use super::Shell;
+        use std::process::Command;
 
         #[test]
         fn classify_maps_known_shells() {
@@ -428,6 +431,46 @@ mod unix {
             let (_, fallback) = Shell::resolve(Some("   ".into()));
             let (_, detected) = Shell::detect();
             assert_eq!(fallback, detected);
+        }
+
+        #[test]
+        fn zsh_user_rc_sees_user_zdotdir_while_sourced() {
+            let root = tempfile::tempdir().unwrap();
+            let integration = root.path().join("integration");
+            let user = root.path().join("user");
+            std::fs::create_dir_all(&integration).unwrap();
+            std::fs::create_dir_all(&user).unwrap();
+            std::fs::write(integration.join(".zshenv"), super::ZSHENV).unwrap();
+            std::fs::write(integration.join(".zprofile"), super::ZPROFILE).unwrap();
+            std::fs::write(integration.join(".zshrc"), super::ZSHRC).unwrap();
+            std::fs::write(integration.join(".zlogin"), super::ZLOGIN).unwrap();
+            std::fs::write(
+                user.join(".zshrc"),
+                "print -r -- USER_ZDOTDIR_DURING_SOURCE=$ZDOTDIR\n",
+            )
+            .unwrap();
+
+            let output = match Command::new("zsh")
+                .env("ZDOTDIR", &integration)
+                .env("TERAX_USER_ZDOTDIR", &user)
+                .arg("-lic")
+                .arg("print -r -- FINAL_ZDOTDIR=$ZDOTDIR")
+                .output()
+            {
+                Ok(output) => output,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
+                Err(e) => panic!("failed to run zsh: {e}"),
+            };
+
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(
+                stdout.contains(&format!("USER_ZDOTDIR_DURING_SOURCE={}", user.display())),
+                "stdout did not show user ZDOTDIR while sourcing .zshrc:\n{stdout}"
+            );
+            assert!(
+                stdout.contains(&format!("FINAL_ZDOTDIR={}", integration.display())),
+                "stdout did not show restored integration ZDOTDIR after startup:\n{stdout}"
+            );
         }
     }
 }
@@ -468,7 +511,9 @@ mod windows {
             zdotdir: String,
             user_zdotdir: Option<String>,
         },
-        Bash { rcfile: String },
+        Bash {
+            rcfile: String,
+        },
         Fish,
         None,
     }

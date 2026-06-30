@@ -33,7 +33,10 @@ type Props = {
   onNewPreview: () => void;
   onNewEditor: () => void;
   onNewGitGraph: () => void;
+  onRefresh: (id: number) => void;
   onClose: (id: number) => void;
+  onCloseTabsToRight: (ids: number[]) => void;
+  onCloseOtherTabs: (ids: number[]) => void;
   /** Promote a preview (transient) tab to persistent. */
   onPin: (id: number) => void;
   /** Set a terminal tab's custom label; empty string resets to default. */
@@ -63,7 +66,10 @@ export function Header({
   onNewPreview,
   onNewEditor,
   onNewGitGraph,
+  onRefresh,
   onClose,
+  onCloseTabsToRight,
+  onCloseOtherTabs,
   onPin,
   onRename,
   onReorder,
@@ -159,7 +165,10 @@ export function Header({
           onNewPreview={onNewPreview}
           onNewEditor={onNewEditor}
           onNewGitGraph={onNewGitGraph}
+          onRefresh={onRefresh}
           onClose={onClose}
+          onCloseTabsToRight={onCloseTabsToRight}
+          onCloseOtherTabs={onCloseOtherTabs}
           onPin={onPin}
           onRename={onRename}
           onReorder={onReorder}

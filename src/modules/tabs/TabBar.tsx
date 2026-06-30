@@ -32,6 +32,7 @@ import {
   IncognitoIcon,
   PencilEdit02Icon,
   PlusSignIcon,
+  Refresh01Icon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -44,6 +45,7 @@ import {
   useState,
 } from "react";
 import { labelFor } from "./lib/tabLabel";
+import { tabsOtherThan, tabsToRight } from "./lib/tabsToRight";
 import type { EditorTab, Tab } from "./lib/useTabs";
 
 type Props = {
@@ -56,7 +58,10 @@ type Props = {
   onNewPreview: () => void;
   onNewEditor: () => void;
   onNewGitGraph: () => void;
+  onRefresh: (id: number) => void;
   onClose: (id: number) => void;
+  onCloseTabsToRight: (ids: number[]) => void;
+  onCloseOtherTabs: (ids: number[]) => void;
   /** Pin (promote) a preview tab to persistent on double-click. */
   onPin: (id: number) => void;
   /** Set a terminal tab's custom label; empty string resets to default. */
@@ -77,7 +82,10 @@ export function TabBar({
   onNewPreview,
   onNewEditor,
   onNewGitGraph,
+  onRefresh,
   onClose,
+  onCloseTabsToRight,
+  onCloseOtherTabs,
   onPin,
   onRename,
   onReorder,
@@ -475,46 +483,89 @@ export function TabBar({
                 </TabsTrigger>
               );
 
-              const tabNode =
-                t.kind === "terminal" ? (
-                  <ContextMenu>
-                    <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
-                    <ContextMenuContent
-                      className="min-w-32 p-1"
-                      onCloseAutoFocus={(e) => e.preventDefault()}
+              const tabNode = (
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>{trigger}</ContextMenuTrigger>
+                  <ContextMenuContent
+                    className="min-w-32 p-1"
+                    onCloseAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <ContextMenuItem
+                      className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
+                      onSelect={() => setEditingId(t.id)}
                     >
+                      <HugeiconsIcon
+                        icon={PencilEdit02Icon}
+                        size={13}
+                        strokeWidth={1.75}
+                      />
+                      <span className="flex-1">Rename</span>
+                    </ContextMenuItem>
+                    {t.kind !== "terminal" && (
+                      <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
+                          onSelect={() => onRefresh(t.id)}
+                        >
+                          <HugeiconsIcon
+                            icon={Refresh01Icon}
+                            size={13}
+                            strokeWidth={1.75}
+                          />
+                          <span className="flex-1">Refresh</span>
+                        </ContextMenuItem>
+                      </>
+                    )}
+                    {tabsToRight(tabs, t.id).length > 0 && (
                       <ContextMenuItem
                         className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
-                        onSelect={() => setEditingId(t.id)}
+                        onSelect={() =>
+                          onCloseTabsToRight(tabsToRight(tabs, t.id))
+                        }
                       >
                         <HugeiconsIcon
-                          icon={PencilEdit02Icon}
+                          icon={Cancel01Icon}
                           size={13}
                           strokeWidth={1.75}
                         />
-                        <span className="flex-1">Rename</span>
+                        <span className="flex-1">Close tabs to the right</span>
                       </ContextMenuItem>
-                      {tabs.length > 1 && (
-                        <>
-                          <ContextMenuSeparator />
-                          <ContextMenuItem
-                            className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
-                            onSelect={() => onClose(t.id)}
-                          >
-                            <HugeiconsIcon
-                              icon={Cancel01Icon}
-                              size={13}
-                              strokeWidth={1.75}
-                            />
-                            <span className="flex-1">Close</span>
-                          </ContextMenuItem>
-                        </>
-                      )}
-                    </ContextMenuContent>
-                  </ContextMenu>
-                ) : (
-                  trigger
-                );
+                    )}
+                    {tabsOtherThan(tabs, t.id).length > 0 && (
+                      <ContextMenuItem
+                        className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
+                        onSelect={() =>
+                          onCloseOtherTabs(tabsOtherThan(tabs, t.id))
+                        }
+                      >
+                        <HugeiconsIcon
+                          icon={Cancel01Icon}
+                          size={13}
+                          strokeWidth={1.75}
+                        />
+                        <span className="flex-1">Close others</span>
+                      </ContextMenuItem>
+                    )}
+                    {tabs.length > 1 && (
+                      <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          className="gap-2 rounded-xl px-2.5 py-1.5 text-[13px]"
+                          onSelect={() => onClose(t.id)}
+                        >
+                          <HugeiconsIcon
+                            icon={Cancel01Icon}
+                            size={13}
+                            strokeWidth={1.75}
+                          />
+                          <span className="flex-1">Close</span>
+                        </ContextMenuItem>
+                      </>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
 
               return (
                 <Fragment key={t.id}>

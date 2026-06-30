@@ -10,7 +10,10 @@ import { usePresence } from "@/lib/usePresence";
 import { quoteShellArg } from "@/lib/shellQuote";
 import { useZoom } from "@/lib/useZoom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { AgentNotificationsBridge, nextAttentionTarget } from "@/modules/agents";
+import {
+  AgentNotificationsBridge,
+  nextAttentionTarget,
+} from "@/modules/agents";
 import {
   AgentRunBridge,
   AiMiniWindow,
@@ -23,10 +26,7 @@ import {
 } from "@/modules/ai";
 import { AiComposerProvider } from "@/modules/ai/lib/composer";
 import { native } from "@/modules/ai/lib/native";
-import {
-  CommandPalette,
-  createCommandItems,
-} from "@/modules/command-palette";
+import { CommandPalette, createCommandItems } from "@/modules/command-palette";
 import {
   NewEditorDialog,
   useEditorFileSync,
@@ -39,6 +39,7 @@ import {
   type SearchInlineHandle,
   type SearchTarget,
 } from "@/modules/header";
+import type { MarkdownPreviewPaneHandle } from "@/modules/markdown";
 import type { PreviewPaneHandle } from "@/modules/preview";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
@@ -158,6 +159,9 @@ export default function App() {
   const terminalRefs = useRef<Map<number, TerminalPaneHandle>>(new Map());
   const editorRefs = useRef<Map<number, EditorPaneHandle>>(new Map());
   const previewRefs = useRef<Map<number, PreviewPaneHandle>>(new Map());
+  const markdownRefs = useRef<Map<number, MarkdownPreviewPaneHandle>>(
+    new Map(),
+  );
   const [activeEditorHandle, setActiveEditorHandle] =
     useState<EditorPaneHandle | null>(null);
   const [gitHistoryHandle, setGitHistoryHandle] =
@@ -176,6 +180,7 @@ export default function App() {
     terminalRefs.current.clear();
     editorRefs.current.clear();
     previewRefs.current.clear();
+    markdownRefs.current.clear();
     setActiveSearchAddon(null);
     setActiveEditorHandle(null);
   }, []);
@@ -234,7 +239,9 @@ export default function App() {
     const prev = prevSpaceRef.current;
     prevSpaceRef.current = activeSpaceId;
     if (prev === null || prev === activeSpaceId) return;
-    const meta = useSpaces.getState().spaces.find((s) => s.id === activeSpaceId);
+    const meta = useSpaces
+      .getState()
+      .spaces.find((s) => s.id === activeSpaceId);
     if (meta) void adoptWorkspaceEnv(meta.env);
     const inSpace = tabsRef.current.filter((t) => t.spaceId === activeSpaceId);
     if (inSpace.length === 0) return;
@@ -333,6 +340,7 @@ export default function App() {
       // handles need explicit cleanup here.
       editorRefs.current.delete(id);
       previewRefs.current.delete(id);
+      markdownRefs.current.delete(id);
       closeTab(id);
     },
     [closeTab],
@@ -351,6 +359,26 @@ export default function App() {
     cancelDeleteClose,
     handlePathDeleted,
   } = useTabCloseGuards({ tabs, disposeTab });
+
+  const handleRefreshTab = useCallback((id: number) => {
+    const tab = tabsRef.current.find((t) => t.id === id);
+    if (tab?.kind === "editor") {
+      editorRefs.current.get(id)?.reload();
+    } else if (tab?.kind === "preview") {
+      previewRefs.current.get(id)?.reload();
+    } else if (tab?.kind === "markdown") {
+      markdownRefs.current.get(id)?.reload();
+    }
+  }, []);
+
+  const handleCloseTabs = useCallback(
+    (ids: number[]) => {
+      void (async () => {
+        for (const id of ids) await handleClose(id);
+      })();
+    },
+    [handleClose],
+  );
 
   const { pendingAppClose, confirmAppClose, cancelAppClose } =
     useAppCloseGuard(tabsRef);
@@ -376,11 +404,20 @@ export default function App() {
   // the Ctrl+Tab quick switcher so it cycles by recency, not strip order.
   const mruRef = useRef<number[]>([activeId]);
   useEffect(() => {
-    mruRef.current = [activeId, ...mruRef.current.filter((id) => id !== activeId)];
+    mruRef.current = [
+      activeId,
+      ...mruRef.current.filter((id) => id !== activeId),
+    ];
   }, [activeId]);
   useEffect(() => {
     const live = new Set(tabs.map((t) => t.id));
     mruRef.current = mruRef.current.filter((id) => live.has(id));
+    for (const k of [...editorRefs.current.keys()])
+      if (!live.has(k)) editorRefs.current.delete(k);
+    for (const k of [...previewRefs.current.keys()])
+      if (!live.has(k)) previewRefs.current.delete(k);
+    for (const k of [...markdownRefs.current.keys()])
+      if (!live.has(k)) markdownRefs.current.delete(k);
   }, [tabs]);
 
   const getSwitcherOrder = useCallback(() => {
@@ -606,7 +643,6 @@ export default function App() {
     [newPreviewTab],
   );
 
-
   const splitActivePaneInActiveTab = useCallback(
     (dir: "row" | "col") => {
       const t = tabsRef.current.find((x) => x.id === activeId);
@@ -798,6 +834,14 @@ export default function App() {
     [],
   );
 
+  const registerMarkdownHandle = useCallback(
+    (id: number, h: MarkdownPreviewPaneHandle | null) => {
+      if (h) markdownRefs.current.set(id, h);
+      else markdownRefs.current.delete(id);
+    },
+    [],
+  );
+
   const handlePreviewUrl = useCallback(
     (id: number, url: string) => updateTab(id, { url }),
     [updateTab],
@@ -934,8 +978,9 @@ export default function App() {
 
   const handleNewTabInSpace = useCallback(
     (spaceId: string) => {
-      const root = useSpaces.getState().spaces.find((s) => s.id === spaceId)
-        ?.root;
+      const root = useSpaces
+        .getState()
+        .spaces.find((s) => s.id === spaceId)?.root;
       newTabInSpace(spaceId, root ?? undefined);
     },
     [newTabInSpace],
@@ -1074,7 +1119,10 @@ export default function App() {
               onNewPreview={() => openPreviewTab("")}
               onNewEditor={() => setNewEditorOpen(true)}
               onNewGitGraph={openGitGraphFromContext}
+              onRefresh={handleRefreshTab}
               onClose={handleClose}
+              onCloseTabsToRight={handleCloseTabs}
+              onCloseOtherTabs={handleCloseTabs}
               onPin={pinTab}
               onRename={handleRenameTab}
               onReorder={reorderTabByGap}
@@ -1108,7 +1156,10 @@ export default function App() {
                 }}
               >
                 <div className="flex h-full min-h-0 flex-col border-r border-border/60 bg-card">
-                  <div key={sidebarView} className="min-h-0 flex-1 terax-panel-in">
+                  <div
+                    key={sidebarView}
+                    className="min-h-0 flex-1 terax-panel-in"
+                  >
                     {sidebarView === "explorer" ? (
                       <FileExplorer
                         ref={explorerRef}
@@ -1159,6 +1210,7 @@ export default function App() {
                       onEditorCloseTab={disposeTab}
                       registerPreviewHandle={registerPreviewHandle}
                       onPreviewUrlChange={handlePreviewUrl}
+                      registerMarkdownHandle={registerMarkdownHandle}
                       onAiDiffAccept={(id) => respondToApproval(id, true)}
                       onAiDiffReject={(id) => respondToApproval(id, false)}
                       onOpenCommitFile={openCommitFileDiffTab}

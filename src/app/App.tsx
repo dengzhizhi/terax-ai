@@ -1215,6 +1215,7 @@ export default function App() {
                       onAiDiffReject={(id) => respondToApproval(id, false)}
                       onOpenCommitFile={openCommitFileDiffTab}
                       onGitHistorySearchHandle={setGitHistoryHandle}
+                      onOpenPath={handleOpenFile}
                       onSetMarkdownView={setMarkdownView}
                     />
                   </div>
